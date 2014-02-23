@@ -16,14 +16,17 @@ setInterval(function() {
 
 var ws = es.map(function(val, cb) {  
   // var i = nSent % 3
+  console.log('val', val);
   
   if (nSent > 1250236) {
     var req = hq.post('http://localhost:3000', function(err) {
       if (err) console.log('req', err)
+      cb()
     })
     req.end(val)
-    cb()
     req.on('error', function(err) {console.log('err', err);})
+  } else {
+    cb()
   }
 
   nSent += 1
