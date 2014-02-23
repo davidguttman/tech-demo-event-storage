@@ -18,6 +18,7 @@
     "post-json": "^0.2.3",
     "event-stream": "^3.1.0",
     "request": "^2.34.0",
-    "hyperquest": "^0.2.0"
+    "hyperquest": "^0.2.0",
+    "leveldown": "^0.10.2"
   }
 }

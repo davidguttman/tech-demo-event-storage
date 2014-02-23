@@ -1,6 +1,6 @@
 var http = require('http')
 var uuid = require('uuid')
-
+var es = require('event-stream')
 var Level    = require('level')
 var SubLevel = require('level-sublevel')
 var Trigger  = require('level-trigger')
@@ -8,6 +8,7 @@ var Trigger  = require('level-trigger')
 var port = process.env.PORT || 3010
 
 var opts = {encoding: 'json', cacheSize: 256 * 1024 * 1024}
+
 var db = SubLevel(Level('./db-' + port, opts))
 
 var Events = db.sublevel('events')
@@ -42,7 +43,7 @@ var nUpdates = 0
 var lastUpdates = 0
 
 setInterval(function() {
-  console.log(port, nUpdates, nUpdates - lastUpdates)
+  // console.log(port, nUpdates, nUpdates - lastUpdates)
   lastUpdates = nUpdates
 }, 1000)
 
@@ -71,6 +72,32 @@ function setMax (event, property, subkey) {
 }
 
 var server = http.createServer(function(req, res) {
+  if (req.url === '/event') return addEvent(req, res)
+  if (req.url === '/pageviews') return getPageviews(req, res)
+})
+
+function getPageviews (req, res) {
+  res.writeHead(200, {'Content-Type': 'application/json'})
+  var pvStream = Pageviews.createReadStream()
+  var last = null
+  var tr = es.through(function(data) {
+    var key_prop = data.key.split('\xff')
+    var pvid = key_prop[0]
+    var property = key_prop[1]
+    
+    last = last || {pageviewId: pvid}
+    
+    if (last.pageviewId !== pvid) {
+      this.queue(JSON.stringify(last) + '\n')
+      last = {pageviewId: pvid}
+    }
+
+    last[property] = data.value
+  })
+  pvStream.pipe(tr).pipe(res)
+}
+
+function addEvent (req, res) {
   var buffer = ''
   req.on('data', function(chunk) { buffer += chunk })
   
@@ -80,7 +107,7 @@ var server = http.createServer(function(req, res) {
     storeEvent(buffer)
     nUpdates += 1
   })
-})
+}
 
 function storeEvent (eventString) {
   var event = JSON.parse(eventString)
